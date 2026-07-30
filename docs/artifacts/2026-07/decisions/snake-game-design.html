@@ -1,0 +1,796 @@
+<title>Snake Game — Design Decisions</title>
+<style>
+/* ============================================================================
+   to-html-base.css — design tokens & primitives for every /to-html artifact
+   ============================================================================ */
+
+:root {
+  /* === Neutrals (cool gray ramp — zinc-leaning) === */
+  --bg:        #fafafa;
+  --surface:   #ffffff;
+  --surface-2: #f4f4f5;
+  --ink:       #18181b;
+  --ink-2:     #3f3f46;
+  --muted:     #71717a;
+  --muted-2:   #a1a1aa;
+  --line:      #e4e4e7;
+  --line-2:    #d4d4d8;
+
+  /* === Single accent slot (overridable per project) === */
+  --accent:      #2563eb;
+  --accent-deep: #1d4ed8;
+  --accent-soft: #eff6ff;
+  --accent-line: #bfdbfe;
+
+  /* === Semantic — use only for status, not decoration === */
+  --success: #16a34a; --success-bg: #f0fdf4; --success-line: #bbf7d0;
+  --warning: #d97706; --warning-bg: #fffbeb; --warning-line: #fde68a;
+  --danger:  #dc2626; --danger-bg:  #fef2f2; --danger-line:  #fecaca;
+  --info:    #2563eb; --info-bg:    #eff6ff; --info-line:    #bfdbfe;
+
+  /* === Typography (system stack — no remote font loads) === */
+  --font-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", system-ui, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+
+  /* Type ramp — 4 sizes + display */
+  --t-xs:   11.5px;
+  --t-sm:   13px;
+  --t-base: 14px;
+  --t-lg:   16px;
+  --t-xl:   20px;
+  --t-2xl:  28px;
+  --t-display: clamp(28px, 5vw, 42px);
+
+  /* === Spacing — 4pt base === */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-6: 24px;
+  --s-8: 32px;
+  --s-12: 48px;
+
+  /* === Shape === */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+  --r-pill: 999px;
+  --shadow: 0 1px 2px rgba(15,15,15,.04), 0 4px 12px rgba(15,15,15,.04);
+  --shadow-lg: 0 1px 2px rgba(15,15,15,.04), 0 12px 32px rgba(15,15,15,.08);
+}
+
+/* === Reset + base === */
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  font: var(--t-base)/1.55 var(--font-sans);
+  color: var(--ink);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* === Layout primitives === */
+.wrap { max-width: 960px; margin: 0 auto; padding: 0 var(--s-6); }
+.wrap-tight { max-width: 760px; margin: 0 auto; padding: 0 var(--s-6); }
+
+/* === Type primitives === */
+.eyebrow {
+  font-size: var(--t-xs);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--muted-2);
+  font-weight: 600;
+}
+.display {
+  font-size: var(--t-display);
+  font-weight: 650;
+  line-height: 1.1;
+  letter-spacing: -.02em;
+  margin: 0;
+}
+.lede {
+  font-size: var(--t-lg);
+  color: var(--muted);
+  max-width: 68ch;
+  line-height: 1.55;
+  margin: 0;
+}
+.mono, code {
+  font-family: var(--font-mono);
+  font-size: .92em;
+  background: var(--surface-2);
+  padding: 1px 6px;
+  border-radius: var(--r-sm);
+  color: var(--ink-2);
+}
+
+/* === Card === */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  padding: var(--s-6);
+  box-shadow: var(--shadow);
+}
+.card + .card { margin-top: var(--s-4); }
+
+/* === Badge / pill === */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--t-xs);
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  color: var(--ink-2);
+  letter-spacing: .02em;
+}
+.badge.success { background: var(--success-bg); border-color: var(--success-line); color: var(--success); }
+.badge.warning { background: var(--warning-bg); border-color: var(--warning-line); color: var(--warning); }
+.badge.danger  { background: var(--danger-bg);  border-color: var(--danger-line);  color: var(--danger); }
+.badge.info    { background: var(--info-bg);    border-color: var(--info-line);    color: var(--info); }
+.badge.recommended {
+  background: var(--accent-soft);
+  border-color: var(--accent-line);
+  color: var(--accent-deep);
+  font-weight: 600;
+}
+
+/* === Callout === */
+.callout {
+  border-radius: var(--r-md);
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  background: var(--surface-2);
+  font-size: var(--t-sm);
+  line-height: 1.5;
+}
+.callout.info    { background: var(--info-bg);    border-color: var(--info-line);    border-left-color: var(--info); }
+.callout.success { background: var(--success-bg); border-color: var(--success-line); border-left-color: var(--success); }
+.callout.warning { background: var(--warning-bg); border-color: var(--warning-line); border-left-color: var(--warning); }
+.callout.danger  { background: var(--danger-bg);  border-color: var(--danger-line);  border-left-color: var(--danger); }
+
+/* === Tables === */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-sm);
+}
+th, td {
+  text-align: left;
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 1px solid var(--line);
+}
+th {
+  font-weight: 600;
+  color: var(--muted);
+  font-size: var(--t-xs);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* === Print niceties === */
+@media print {
+  body { background: white; }
+  .card { box-shadow: none; }
+}
+
+/* ============================================================================
+   Artifact overrides — decision sheet, snake game
+   ============================================================================ */
+
+:root {
+  /* Emerald accent — it's a snake game */
+  --accent:      #059669;
+  --accent-deep: #047857;
+  --accent-soft: #ecfdf5;
+  --accent-line: #a7f3d0;
+}
+
+body { padding-bottom: var(--s-12); }
+
+/* --- Masthead --- */
+.masthead {
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  padding: var(--s-8) 0 var(--s-6);
+}
+.masthead .display { margin-bottom: var(--s-2); }
+.meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) var(--s-3);
+  margin-top: var(--s-4);
+  align-items: center;
+}
+
+/* --- Sticky toolbar --- */
+.toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: rgba(250,250,250,.88);
+  backdrop-filter: saturate(140%) blur(8px);
+  border-bottom: 1px solid var(--line);
+  padding: var(--s-3) 0;
+  margin-bottom: var(--s-6);
+}
+.toolbar-inner {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  flex-wrap: wrap;
+}
+.progress {
+  font-size: var(--t-sm);
+  color: var(--muted);
+  margin-right: auto;
+}
+.progress b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
+button {
+  font: 600 var(--t-sm)/1 var(--font-sans);
+  border-radius: var(--r-md);
+  border: 1px solid var(--line-2);
+  background: var(--surface);
+  color: var(--ink-2);
+  padding: 9px 14px;
+  cursor: pointer;
+  transition: background .12s, border-color .12s, transform .06s;
+}
+button:hover { background: var(--surface-2); border-color: var(--muted-2); }
+button:active { transform: translateY(1px); }
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent-deep);
+  color: #fff;
+}
+button.primary:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
+button.ghost { border-color: transparent; background: transparent; color: var(--muted); font-weight: 500; }
+button.ghost:hover { background: var(--surface-2); color: var(--ink-2); }
+
+/* --- Question card --- */
+.q .q-head {
+  display: flex;
+  gap: var(--s-3);
+  align-items: baseline;
+  margin-bottom: var(--s-3);
+}
+.qnum {
+  font: 700 var(--t-xs)/1 var(--font-mono);
+  color: var(--accent-deep);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: var(--r-pill);
+  padding: 5px 9px;
+  flex: 0 0 auto;
+  letter-spacing: .04em;
+}
+.q h2 {
+  font-size: var(--t-lg);
+  font-weight: 650;
+  letter-spacing: -.01em;
+  margin: 0;
+  line-height: 1.35;
+}
+
+/* Context boxes, colour-coded by card type */
+.ctx {
+  font-size: var(--t-sm);
+  line-height: 1.55;
+  border-radius: var(--r-md);
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  padding: var(--s-3) var(--s-4);
+  margin-bottom: var(--s-4);
+  color: var(--ink-2);
+}
+.ctx.fork    { background: var(--warning-bg); border-color: var(--warning-line); border-left-color: var(--warning); }
+.ctx.taste   { background: var(--info-bg);    border-color: var(--info-line);    border-left-color: var(--info); }
+.ctx.neutral { background: var(--surface-2);  border-color: var(--line);         border-left-color: var(--muted-2); }
+.ctx b { color: var(--ink); }
+.ctx .tag { font-weight: 700; letter-spacing: .02em; }
+
+/* Options */
+.opts { display: grid; gap: var(--s-2); }
+.opt {
+  display: flex;
+  gap: var(--s-3);
+  align-items: flex-start;
+  padding: var(--s-3) var(--s-4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color .12s, background .12s;
+}
+.opt:hover { border-color: var(--line-2); background: var(--surface-2); }
+.opt input { margin: 3px 0 0; accent-color: var(--accent); flex: 0 0 auto; width: 15px; height: 15px; }
+.opt:has(input:checked) {
+  border-color: var(--accent-line);
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent-line);
+}
+.opt-body { display: grid; gap: 3px; }
+.opt-label {
+  font-weight: 600;
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  flex-wrap: wrap;
+}
+.opt-desc { font-size: var(--t-sm); color: var(--muted); line-height: 1.5; }
+.opt.dive { border-style: dashed; }
+.opt.dive .opt-label { color: var(--ink-2); }
+
+/* Free-text escape hatch */
+.free {
+  display: grid;
+  gap: 6px;
+  margin-top: var(--s-4);
+  font-size: var(--t-xs);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--muted-2);
+}
+.free input, .free textarea {
+  font: var(--t-base)/1.5 var(--font-sans);
+  text-transform: none;
+  letter-spacing: normal;
+  color: var(--ink);
+  padding: 9px 12px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  width: 100%;
+  resize: vertical;
+}
+.free input:focus, .free textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+/* Multi-select variant */
+.opt.multi input { border-radius: var(--r-sm); }
+
+/* Copy output area */
+#out {
+  font: var(--t-sm)/1.5 var(--font-mono);
+  white-space: pre-wrap;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  padding: var(--s-4);
+  margin-top: var(--s-3);
+  max-height: 320px;
+  overflow: auto;
+}
+.hidden { display: none; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(12px);
+  background: var(--ink);
+  color: #fff;
+  font-size: var(--t-sm);
+  font-weight: 600;
+  padding: 10px 18px;
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .18s, transform .18s;
+  z-index: 50;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+@media (max-width: 620px) {
+  .wrap, .wrap-tight { padding: 0 var(--s-4); }
+  .card { padding: var(--s-4); }
+  .q .q-head { flex-direction: column; gap: var(--s-2); }
+}
+</style>
+
+<header class="masthead">
+  <div class="wrap-tight">
+    <p class="eyebrow">Decision sheet</p>
+    <h1 class="display">Snake — design decisions</h1>
+    <p class="lede">Eight forks that shape the build. Everything is pre-answered with my recommendation, so you can skim, override what you disagree with, and paste back.</p>
+    <div class="meta-row">
+      <span class="badge">2026-07-29</span>
+      <span class="badge">Project Daws</span>
+      <span class="badge info">8 decisions · all pre-filled</span>
+    </div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="wrap-tight toolbar-inner">
+    <span class="progress"><b id="answered">0</b> / 8 answered · <span id="saved">saved</span></span>
+    <button class="ghost" id="reset">Reset</button>
+    <button class="primary" id="copy">Copy answers as prompt</button>
+  </div>
+</div>
+
+<main class="wrap-tight">
+
+  <!-- Q1 -->
+  <section class="card q" data-q="1" data-title="Packaging &amp; tech"
+           data-dive="survey how the best browser snake implementations are structured (single-file vs bundled), and what that costs in maintainability vs. portability">
+    <div class="q-head"><span class="qnum">Q1</span><h2>How should this be packaged?</h2></div>
+    <div class="ctx fork">
+      <span class="tag">⚖ The fork:</span> single-file is instantly playable — double-click, no server, no install, easy to email or drop on a static host — but it grows awkward past ~1,000 lines. A bundled project is nicer to extend later but needs <code>npm install</code> before anyone can play. <b>This is the only choice here that's expensive to reverse.</b>
+    </div>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q1" value="Single self-contained HTML file" checked>
+        <span class="opt-body"><span class="opt-label">Single self-contained HTML file <span class="badge recommended">✦ Recommended</span></span>
+        <span class="opt-desc">One <code>snake.html</code> with inline CSS + JS, canvas-rendered, zero dependencies. Double-click to play. Right-sized for a game this scope.</span></span></label>
+      <label class="opt"><input type="radio" name="q1" value="Split static files (index.html + game.js + style.css)">
+        <span class="opt-body"><span class="opt-label">Split static files</span>
+        <span class="opt-desc"><code>index.html</code> + <code>game.js</code> + <code>style.css</code>. Still no build step, still opens locally. Cleaner diffs if this grows.</span></span></label>
+      <label class="opt"><input type="radio" name="q1" value="Vite + TypeScript project">
+        <span class="opt-body"><span class="opt-label">Vite + TypeScript project</span>
+        <span class="opt-desc">Real module structure, types, dev server, room for tests. Highest ceiling; needs a toolchain to run.</span></span></label>
+      <label class="opt dive"><input type="radio" name="q1" value="__DIVE__">
+        <span class="opt-body"><span class="opt-label">🔍 Sub-agent deep dive</span>
+        <span class="opt-desc">Have an agent compare packaging approaches before I commit.</span></span></label>
+    </div>
+    <label class="free">Something else (free text)
+      <input type="text" name="q1_note" placeholder="e.g. “put it in a React component I can drop into an existing app”">
+    </label>
+  </section>
+
+  <!-- Q2 -->
+  <section class="card q" data-q="2" data-title="Visual style"
+           data-dive="research distinctive visual treatments for canvas snake games and come back with 3 concrete art directions plus palettes">
+    <div class="q-head"><span class="qnum">Q2</span><h2>What should it look like?</h2></div>
+    <div class="ctx taste">
+      <span class="tag">🎨 Taste call:</span> this drives palette, snake rendering, grid treatment, and typography. All three are equally achievable on canvas — it's purely about the feel you want. Cheap to change later.
+    </div>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q2" value="Neon arcade — dark board, glowing snake, subtle bloom" checked>
+        <span class="opt-body"><span class="opt-label">Neon arcade <span class="badge recommended">✦ Recommended</span></span>
+        <span class="opt-desc">Near-black board, emerald snake with a soft glow, hot-pink food, faint grid, tabular mono HUD. Reads modern, photographs well, and canvas shadow-blur gets you most of the way for free.</span></span></label>
+      <label class="opt"><input type="radio" name="q2" value="Retro pixel / CRT — chunky blocks, scanlines, amber-green phosphor">
+        <span class="opt-body"><span class="opt-label">Retro pixel / CRT</span>
+        <span class="opt-desc">Hard-edged blocks, phosphor green on dark, scanline overlay, slight vignette. Nostalgic and characterful.</span></span></label>
+      <label class="opt"><input type="radio" name="q2" value="Clean modern minimal — light board, rounded segments, soft palette">
+        <span class="opt-body"><span class="opt-label">Clean modern minimal</span>
+        <span class="opt-desc">Light board, rounded snake segments, muted pastel palette, lots of whitespace. Calm and design-system-friendly.</span></span></label>
+      <label class="opt dive"><input type="radio" name="q2" value="__DIVE__">
+        <span class="opt-body"><span class="opt-label">🔍 Sub-agent deep dive</span>
+        <span class="opt-desc">Send an agent to gather art directions and palettes first.</span></span></label>
+    </div>
+    <label class="free">Something else (free text)
+      <input type="text" name="q2_note" placeholder="e.g. “match the Kingside brand colors” or “make it look hand-drawn”">
+    </label>
+  </section>
+
+  <!-- Q3 -->
+  <section class="card q" data-q="3" data-title="Wall behavior"
+           data-dive="look at how wall-kill vs wrap affects difficulty curves and which players prefer in modern snake clones">
+    <div class="q-head"><span class="qnum">Q3</span><h2>What happens at the edge of the board?</h2></div>
+    <div class="ctx fork">
+      <span class="tag">⚖ The fork:</span> walls-kill is the canonical rule and makes the board feel tense and finite. Wrap-around is far more forgiving and changes the whole skill ceiling — good scores get much longer. Making it a toggle means tuning and testing two difficulty curves instead of one.
+    </div>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q3" value="Classic — hitting a wall ends the run" checked>
+        <span class="opt-body"><span class="opt-label">Classic — walls kill <span class="badge recommended">✦ Recommended</span></span>
+        <span class="opt-desc">What people expect from "snake." Keeps runs punchy and the board meaningful.</span></span></label>
+      <label class="opt"><input type="radio" name="q3" value="Wrap-around — snake reappears on the opposite edge">
+        <span class="opt-body"><span class="opt-label">Wrap-around</span>
+        <span class="opt-desc">Edges are portals. Only your own tail can kill you. Much gentler.</span></span></label>
+      <label class="opt"><input type="radio" name="q3" value="Player-selectable toggle on the start screen">
+        <span class="opt-body"><span class="opt-label">Player-selectable toggle</span>
+        <span class="opt-desc">Both rules, chosen before each run. Separate high scores per mode.</span></span></label>
+      <label class="opt dive"><input type="radio" name="q3" value="__DIVE__">
+        <span class="opt-body"><span class="opt-label">🔍 Sub-agent deep dive</span>
+        <span class="opt-desc">Investigate the difficulty implications before deciding.</span></span></label>
+    </div>
+    <label class="free">Something else (free text)
+      <input type="text" name="q3_note" placeholder="e.g. “walls kill, but give me one free bounce per run”">
+    </label>
+  </section>
+
+  <!-- Q4 -->
+  <section class="card q" data-q="4" data-title="Difficulty curve"
+           data-dive="determine good tick-rate curves and starting speeds for a grid snake game so it's neither sluggish at the start nor unplayable by score 30">
+    <div class="q-head"><span class="qnum">Q4</span><h2>How should difficulty scale?</h2></div>
+    <div class="ctx fork">
+      <span class="tag">⚖ The fork:</span> this is the single biggest lever on whether the game feels good. Too slow at the start and it's boring; ramp too hard and it's unplayable by score 20. Presets alone let players self-select but the game never builds tension within a run.
+    </div>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q4" value="Progressive ramp — tick speeds up as the snake grows, with a floor" checked>
+        <span class="opt-body"><span class="opt-label">Progressive ramp <span class="badge recommended">✦ Recommended</span></span>
+        <span class="opt-desc">Starts comfortable (~8 moves/sec), tightens with each apple, capped so it stays humanly playable. Builds real tension inside one run.</span></span></label>
+      <label class="opt"><input type="radio" name="q4" value="Fixed speed with three difficulty presets (Chill / Classic / Frantic)">
+        <span class="opt-body"><span class="opt-label">Three fixed presets</span>
+        <span class="opt-desc">Chill / Classic / Frantic, constant speed throughout. Predictable and fair; easier to compare scores.</span></span></label>
+      <label class="opt"><input type="radio" name="q4" value="Both — presets set the starting speed, then it ramps from there">
+        <span class="opt-body"><span class="opt-label">Both — presets set the floor, then ramp</span>
+        <span class="opt-desc">Most control, most tuning surface. Presets choose your starting pace and the ramp still kicks in.</span></span></label>
+      <label class="opt dive"><input type="radio" name="q4" value="__DIVE__">
+        <span class="opt-body"><span class="opt-label">🔍 Sub-agent deep dive</span>
+        <span class="opt-desc">Work out concrete tick curves and starting speeds first.</span></span></label>
+    </div>
+    <label class="free">Something else (free text)
+      <input type="text" name="q4_note" placeholder="e.g. “ramp, but let me tune the numbers in one config object at the top”">
+    </label>
+  </section>
+
+  <!-- Q5 -->
+  <section class="card q" data-q="5" data-title="Mechanics beyond classic"
+           data-dive="evaluate which snake power-ups and hazards actually improve the game vs. add noise, with examples from well-regarded modern clones">
+    <div class="q-head"><span class="qnum">Q5</span><h2>Anything beyond classic snake?</h2></div>
+    <div class="ctx fork">
+      <span class="tag">⚖ The fork:</span> extras are where scope grows fastest, and each one adds state, edge cases, and a new way for the game to feel unfair. Pure classic ships tighter and plays cleaner; the light set adds variety without much risk.
+    </div>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q5" value="Light extras — bonus fruit (timed, worth more) + combo scoring for quick eats" checked>
+        <span class="opt-body"><span class="opt-label">Light extras <span class="badge recommended">✦ Recommended</span></span>
+        <span class="opt-desc">A timed golden fruit worth extra, plus a small combo bonus for eating in quick succession. Adds decisions without changing the core loop.</span></span></label>
+      <label class="opt"><input type="radio" name="q5" value="Pure classic — food, growth, score, death. Nothing else">
+        <span class="opt-body"><span class="opt-label">Pure classic</span>
+        <span class="opt-desc">Food, growth, score, death. No power-ups, no hazards. Cleanest possible game.</span></span></label>
+      <label class="opt"><input type="radio" name="q5" value="Full kit — power-ups (slow-mo, ghost, shrink) plus static obstacles that appear as you score">
+        <span class="opt-body"><span class="opt-label">Full kit</span>
+        <span class="opt-desc">Slow-mo, phase-through-tail, shrink, plus obstacle blocks that appear as the board heats up. Most variety, most tuning, most bugs.</span></span></label>
+      <label class="opt dive"><input type="radio" name="q5" value="__DIVE__">
+        <span class="opt-body"><span class="opt-label">🔍 Sub-agent deep dive</span>
+        <span class="opt-desc">Have an agent pressure-test which extras are worth it.</span></span></label>
+    </div>
+    <label class="free">Something else (free text)
+      <input type="text" name="q5_note" placeholder="e.g. “no power-ups, but I do want obstacles after score 25”">
+    </label>
+  </section>
+
+  <!-- Q6 -->
+  <section class="card q" data-q="6" data-title="Controls &amp; mobile"
+           data-dive="check best practices for touch input on grid games — swipe thresholds, d-pad ergonomics, and preventing scroll/zoom interference on mobile Safari">
+    <div class="q-head"><span class="qnum">Q6</span><h2>How do people control it?</h2></div>
+    <div class="ctx fork">
+      <span class="tag">⚑ Stakes:</span> if you'll ever open this on your phone, touch support has to be designed in — retrofitting swipe handling plus the mobile-Safari scroll/zoom suppression is fiddlier than building it up front. Keyboard-only is meaningfully less work.
+    </div>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q6" value="Full — arrows + WASD + swipe + on-screen d-pad on touch devices" checked>
+        <span class="opt-body"><span class="opt-label">Everything <span class="badge recommended">✦ Recommended</span></span>
+        <span class="opt-desc">Arrows + WASD on desktop; swipe gestures and an on-screen d-pad on touch, with page scroll/zoom locked over the board. Plays properly anywhere.</span></span></label>
+      <label class="opt"><input type="radio" name="q6" value="Keyboard + swipe (no on-screen d-pad)">
+        <span class="opt-body"><span class="opt-label">Keyboard + swipe</span>
+        <span class="opt-desc">Works on phones without adding visible controls that eat screen space.</span></span></label>
+      <label class="opt"><input type="radio" name="q6" value="Keyboard only — desktop game">
+        <span class="opt-body"><span class="opt-label">Keyboard only</span>
+        <span class="opt-desc">Treat it as a desktop game. Simplest input layer.</span></span></label>
+      <label class="opt dive"><input type="radio" name="q6" value="__DIVE__">
+        <span class="opt-body"><span class="opt-label">🔍 Sub-agent deep dive</span>
+        <span class="opt-desc">Research touch-input specifics before I build the input layer.</span></span></label>
+    </div>
+    <label class="free">Something else (free text)
+      <input type="text" name="q6_note" placeholder="e.g. “also support a gamepad” or “vim keys hjkl”">
+    </label>
+  </section>
+
+  <!-- Q7 -->
+  <section class="card q" data-q="7" data-title="Persistence &amp; sound"
+           data-dive="confirm whether synthesized WebAudio blips or no audio is the better default for a game like this, and how autoplay policies affect first-input sound">
+    <div class="q-head"><span class="qnum">Q7</span><h2>High scores and sound?</h2></div>
+    <div class="ctx neutral">
+      <span class="tag">◇ Low risk:</span> both are small, self-contained additions. Sound is synthesized with WebAudio — no audio files, so the single-file packaging stays intact. Default is muted, since browsers block audio before first input anyway.
+    </div>
+    <div class="opts">
+      <label class="opt"><input type="radio" name="q7" value="Both — localStorage best score + synthesized WebAudio blips, muted by default with a toggle" checked>
+        <span class="opt-body"><span class="opt-label">Best score + optional sound <span class="badge recommended">✦ Recommended</span></span>
+        <span class="opt-desc">Personal best persists across reloads; short synth blips for eat / turn / death behind a mute toggle that remembers itself.</span></span></label>
+      <label class="opt"><input type="radio" name="q7" value="High score persistence only — silent game">
+        <span class="opt-body"><span class="opt-label">High score only, silent</span>
+        <span class="opt-desc">Keeps the best-score chase, skips audio entirely.</span></span></label>
+      <label class="opt"><input type="radio" name="q7" value="Neither — session-only score, no sound">
+        <span class="opt-body"><span class="opt-label">Neither</span>
+        <span class="opt-desc">Score resets on reload. Nothing stored, nothing played.</span></span></label>
+      <label class="opt dive"><input type="radio" name="q7" value="__DIVE__">
+        <span class="opt-body"><span class="opt-label">🔍 Sub-agent deep dive</span>
+        <span class="opt-desc">Look into audio approach and autoplay constraints first.</span></span></label>
+    </div>
+    <label class="free">Something else (free text)
+      <input type="text" name="q7_note" placeholder="e.g. “keep a local top-10 leaderboard with initials”">
+    </label>
+  </section>
+
+  <!-- Q8 -->
+  <section class="card q multi" data-q="8" data-title="Polish (multi-select)"
+           data-dive="identify which small polish details most improve perceived quality in a canvas arcade game">
+    <div class="q-head"><span class="qnum">Q8</span><h2>Which polish details do you want? <span class="badge">multi-select</span></h2></div>
+    <div class="ctx neutral">
+      <span class="tag">◇ Low risk:</span> each is independent and small. The four pre-checked ones are what I'd consider table stakes for it not to feel like a prototype — uncheck anything you'd rather skip.
+    </div>
+    <div class="opts">
+      <label class="opt multi"><input type="checkbox" name="q8" value="Pause / resume (space or P) with a visible paused state" checked>
+        <span class="opt-body"><span class="opt-label">Pause / resume <span class="badge recommended">✦ Recommended</span></span>
+        <span class="opt-desc">Space or P, plus auto-pause when the tab loses focus so you don't die in the background.</span></span></label>
+      <label class="opt multi"><input type="checkbox" name="q8" value="Smooth interpolated movement between grid cells" checked>
+        <span class="opt-body"><span class="opt-label">Smooth movement <span class="badge recommended">✦ Recommended</span></span>
+        <span class="opt-desc">Snake glides between cells instead of snapping. Single biggest upgrade to how the game feels.</span></span></label>
+      <label class="opt multi"><input type="checkbox" name="q8" value="Input buffering so fast direction changes are never dropped" checked>
+        <span class="opt-body"><span class="opt-label">Input buffering <span class="badge recommended">✦ Recommended</span></span>
+        <span class="opt-desc">Queues your next turn so quick double-taps register. Removes the classic "I pressed it!" deaths.</span></span></label>
+      <label class="opt multi"><input type="checkbox" name="q8" value="Start screen and game-over overlay with restart" checked>
+        <span class="opt-body"><span class="opt-label">Start &amp; game-over screens <span class="badge recommended">✦ Recommended</span></span>
+        <span class="opt-desc">Proper title state, controls hint, and a game-over card showing score vs. best with one-key restart.</span></span></label>
+      <label class="opt multi"><input type="checkbox" name="q8" value="Score pop animations when food is eaten">
+        <span class="opt-body"><span class="opt-label">Score pop animations</span>
+        <span class="opt-desc">Floating "+1" that rises and fades at the eat location.</span></span></label>
+      <label class="opt multi"><input type="checkbox" name="q8" value="Death animation — brief shake and snake flash before game over">
+        <span class="opt-body"><span class="opt-label">Death animation</span>
+        <span class="opt-desc">Short screen shake and flash so dying reads as an event, not a freeze.</span></span></label>
+      <label class="opt multi"><input type="checkbox" name="q8" value="Snake face — eyes on the head that look in the direction of travel">
+        <span class="opt-body"><span class="opt-label">Eyes on the head</span>
+        <span class="opt-desc">Small directional eyes. Disproportionate charm for the effort.</span></span></label>
+      <label class="opt multi"><input type="checkbox" name="q8" value="Responsive board that scales to the viewport (crisp on retina)">
+        <span class="opt-body"><span class="opt-label">Responsive / retina-crisp board</span>
+        <span class="opt-desc">Canvas resizes to fit the window and scales for device pixel ratio so nothing looks blurry.</span></span></label>
+      <label class="opt multi dive"><input type="checkbox" name="q8" value="__DIVE__">
+        <span class="opt-body"><span class="opt-label">🔍 Sub-agent deep dive</span>
+        <span class="opt-desc">Have an agent recommend the polish set instead.</span></span></label>
+    </div>
+    <label class="free">Something else (free text)
+      <input type="text" name="q8_note" placeholder="e.g. “add a subtle trail behind the snake”">
+    </label>
+  </section>
+
+  <section class="card">
+    <h2 style="font-size:var(--t-lg);font-weight:650;margin:0 0 var(--s-2)">Done?</h2>
+    <p style="color:var(--muted);font-size:var(--t-sm);margin:0 0 var(--s-4)">Hit <b>Copy answers as prompt</b> at the top (or the button below) and paste it back into the conversation. Selections auto-save, so reloading this page won't lose your work.</p>
+    <button class="primary" id="copy2">Copy answers as prompt</button>
+    <button class="ghost" id="show">Show text</button>
+    <pre id="out" class="hidden"></pre>
+  </section>
+
+</main>
+
+<div class="toast" id="toast">Copied</div>
+
+<script>
+(function () {
+  var KEY = 'daws-snake-design-sheet-v1';
+  var cards = Array.prototype.slice.call(document.querySelectorAll('.q'));
+
+  function inputs() {
+    return Array.prototype.slice.call(document.querySelectorAll('input[name]'));
+  }
+
+  /* ---------- persistence ---------- */
+  function save() {
+    var state = { radio: {}, check: {}, text: {} };
+    inputs().forEach(function (el) {
+      if (el.type === 'radio') { if (el.checked) state.radio[el.name] = el.value; }
+      else if (el.type === 'checkbox') { state.check[el.name + '||' + el.value] = el.checked; }
+      else { state.text[el.name] = el.value; }
+    });
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+    var s = document.getElementById('saved');
+    s.textContent = 'saved';
+    s.style.color = 'var(--accent-deep)';
+    setTimeout(function () { s.style.color = ''; }, 700);
+  }
+
+  function restore() {
+    var raw;
+    try { raw = localStorage.getItem(KEY); } catch (e) { return; }
+    if (!raw) return;
+    var state;
+    try { state = JSON.parse(raw); } catch (e) { return; }
+    inputs().forEach(function (el) {
+      if (el.type === 'radio') {
+        if (Object.prototype.hasOwnProperty.call(state.radio || {}, el.name)) {
+          el.checked = (state.radio[el.name] === el.value);
+        }
+      } else if (el.type === 'checkbox') {
+        var k = el.name + '||' + el.value;
+        if (Object.prototype.hasOwnProperty.call(state.check || {}, k)) el.checked = !!state.check[k];
+      } else if ((state.text || {})[el.name] != null) {
+        el.value = state.text[el.name];
+      }
+    });
+  }
+
+  /* ---------- progress ---------- */
+  function tally() {
+    var n = 0;
+    cards.forEach(function (card) {
+      var picked = card.querySelector('input[type=radio]:checked, input[type=checkbox]:checked');
+      var note = card.querySelector('input[type=text]');
+      if (picked || (note && note.value.trim())) n++;
+    });
+    document.getElementById('answered').textContent = n;
+  }
+
+  /* ---------- prompt output ---------- */
+  function build() {
+    var lines = ['DECISION SHEET ANSWERS',
+                 'Sheet: Snake game design — 2026-07-29 — Project Daws',
+                 ''];
+    cards.forEach(function (card) {
+      var q = card.getAttribute('data-q');
+      var title = card.getAttribute('data-title');
+      var dive = card.getAttribute('data-dive');
+      lines.push('Q' + q + ': ' + title);
+
+      var picked = Array.prototype.slice
+        .call(card.querySelectorAll('input[type=radio]:checked, input[type=checkbox]:checked'))
+        .map(function (el) { return el.value; });
+
+      if (!picked.length) {
+        lines.push('A: — blank —');
+      } else {
+        picked.forEach(function (v) {
+          if (v === '__DIVE__') lines.push('A: 🔍 Sub-agent deep dive — ' + dive);
+          else lines.push('A: ' + v);
+        });
+      }
+
+      var note = card.querySelector('input[type=text]');
+      if (note && note.value.trim()) lines.push('Note: ' + note.value.trim());
+      lines.push('');
+    });
+    return lines.join('\n');
+  }
+
+  function toast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(function () { t.classList.remove('show'); }, 1600);
+  }
+
+  function copy() {
+    var text = build();
+    var out = document.getElementById('out');
+    out.textContent = text;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(
+        function () { toast('Copied — paste it back in chat'); },
+        function () { out.classList.remove('hidden'); toast('Copy blocked — select the text below'); }
+      );
+    } else {
+      out.classList.remove('hidden');
+      toast('Select the text below and copy');
+    }
+  }
+
+  /* ---------- wiring ---------- */
+  document.addEventListener('change', function (e) {
+    if (e.target && e.target.name) { save(); tally(); }
+  });
+  document.addEventListener('input', function (e) {
+    if (e.target && e.target.type === 'text') { save(); tally(); }
+  });
+  document.getElementById('copy').addEventListener('click', copy);
+  document.getElementById('copy2').addEventListener('click', copy);
+  document.getElementById('show').addEventListener('click', function () {
+    var out = document.getElementById('out');
+    out.textContent = build();
+    out.classList.toggle('hidden');
+    this.textContent = out.classList.contains('hidden') ? 'Show text' : 'Hide text';
+  });
+  document.getElementById('reset').addEventListener('click', function () {
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    location.reload();
+  });
+
+  restore();
+  tally();
+  save();
+})();
+</script>
